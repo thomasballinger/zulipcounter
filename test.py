@@ -2,6 +2,7 @@
 
 import zulip
 import os
+import json
 
 CLIENT = zulip.Client(email=os.environ['ZULIP_EMAIL'],
                       api_key=os.environ['ZULIP_API_KEY'])
@@ -26,11 +27,16 @@ class ZulipUsersCounter(object):
     def __init__(self, filterfunc, new_user_msg, users=None, intro_message=None):
         """msg_new_user is sent when a unique user from the users list passes the filterfunc"""
         ZulipUsersCounter.counters.append(self) # not cls so subclasses use same list
-        self.counted_users = set()
         self.users = users
         self.filterfunc = filterfunc
         self.new_user_msg = new_user_msg
         self.sender = BOTCLIENT
+        self.filename = self.__class__.__name__ + '.json'
+        if not os.path.exists(self.filename):
+            with open(self.filename, 'w') as f:
+                json.dump([], f)
+        with open(self.filename, 'r') as f:
+            self.counted_users = set(json.load(f))
         if intro_message:
             self.sender.send_message(intro_message)
 
@@ -44,6 +50,8 @@ class ZulipUsersCounter(object):
     def count(self, user):
         if user not in self.counted_users:
             self.counted_users.add(user)
+            with open(self.filename, 'w') as f:
+                json.dump(list(self.counted_users), f)
             if self.new_user_msg.func_code.co_argcount == 1:
                 self.sender.send_message(self.new_user_msg(user))
             else:
