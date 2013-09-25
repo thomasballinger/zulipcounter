@@ -4,6 +4,8 @@ import zulip
 import os
 import json
 
+#TODO use a database instead
+
 CLIENT = zulip.Client(email=os.environ['ZULIP_EMAIL'],
                       api_key=os.environ['ZULIP_API_KEY'])
 BOTCLIENT = zulip.Client(email=os.environ['ZULIP_COMMIT_BOT_EMAIL'],
@@ -24,14 +26,14 @@ class ZulipUsersCounter(object):
     def start(cls):
         CLIENT.call_on_each_event(ZulipUsersCounter.call_each_callback)
 
-    def __init__(self, filterfunc, new_user_msg, users=None, intro_message=None):
+    def __init__(self, filterfunc, new_user_msg, users=None, intro_message=None, filename=None):
         """msg_new_user is sent when a unique user from the users list passes the filterfunc"""
         ZulipUsersCounter.counters.append(self) # not cls so subclasses use same list
         self.users = users
         self.filterfunc = filterfunc
         self.new_user_msg = new_user_msg
         self.sender = BOTCLIENT
-        self.filename = self.__class__.__name__ + '.json'
+        self.filename = filterfunc.__name__ if filename is None else filename
         if not os.path.exists(self.filename):
             with open(self.filename, 'w') as f:
                 json.dump([], f)
@@ -74,7 +76,7 @@ class CommitUsersCounter(ZulipUsersCounter):
                 "subject": "Commit Participation Progress",
                 "content": "Let's keep track of how many Hacker Schoolers from this batch have published the pushing of a commit on Zulip!"
             }
-        super(CommitUsersCounter, self).__init__(filterfunc, new_user_msg, users=None, intro_message=intro_message)
+        super(CommitUsersCounter, self).__init__(filterfunc, new_user_msg, users=None, intro_message=intro_message, filename=self.__class__.__name__ + '.json')
 
 class UsedZulipUsersCounter(ZulipUsersCounter):
     def __init__(self):
@@ -93,8 +95,14 @@ class UsedZulipUsersCounter(ZulipUsersCounter):
                 "subject": "Zulip Participation Progress",
                 "content": "Let's keep track of how many Hacker Schoolers from this batch have sent messages on Zulip containing correctly formatted code! (see 'message formatting' under the gear icon menu for help)"
             }
-        super(UsedZulipUsersCounter, self).__init__(filterfunc, new_user_msg, users=None, intro_message=intro_message)
+        super(UsedZulipUsersCounter, self).__init__(filterfunc, new_user_msg, users=None, intro_message=intro_message, filename=self.__class__.__name__ + '.json')
 
+intro = ZulipUsersCounter(lambda x: x['type'] == 'message' and x['message']['display_recipient'] == 'test-bot2',
+                          {'type': 'stream', 'to': 'test-bot2', 'subject': 'Intro Participation Progress',
+                           "content": "%d Hacker Schooler%s sent messages containing code on Zulip!" % (len(intro.counted_users), ' has' if len(intro.counted_users) == 1 else 's have')},
+                          intro_message={"type": "stream", "to": "test-bot2", "subject": "Zulip Participation Progress",
+                                           "content": "Let's keep track of how many Hacker Schoolers from this batch have sent messages on Zulip containing correctly formatted code! (see 'message formatting' under the gear icon menu for help)"},
+                          filename='introduced.json')
 a = UsedZulipUsersCounter()
 b = CommitUsersCounter()
 a.start()
