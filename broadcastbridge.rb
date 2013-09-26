@@ -8,12 +8,12 @@ require 'json'
 Zulip_bot_email = ENV['FACULTY_ZULIP_BOT_EMAIL']
 Zulip_bot_api_key = ENV['FACULTY_ZULIP_BOT_API_KEY']
 
-TestPusherSecret = ENV['TEST_PUSHER_SECRET']
-TestPusherUser = ENV['TEST_PUSHER_USER']
+m = /http:\/\/([a-z0-9]+):([a-z0-9]+)@api.pusherapp.com\/apps\/([0-9]+)/.match ENV['TEST_PUSHER_URL']
+TestPusherUser = m[1]
+TestPusherSecret = m[2]
 
 def send_zulip_msg(msg)
   uri = URI.parse('https://api.zulip.com/v1/messages')
-
 
   https = Net::HTTP.new(uri.host, uri.port) 
   https.use_ssl = true
@@ -26,7 +26,6 @@ def send_zulip_msg(msg)
                     content: msg)
   res = https.request(req)
 end
-
 
 PusherClient.logger = Logger.new(STDOUT)
 
