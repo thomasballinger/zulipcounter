@@ -1,0 +1,44 @@
+<html>
+
+    <h2>All Users</h2>
+    <ul>
+        {% for user in counter.all %}
+        <li>
+            {{ user }}
+            <a href="/remove/{{ hash(user) }}">remove</a></li>
+        {% endfor %}
+    </ul>
+
+    {% for attribute in counter.attributes %}
+
+        <h2>{{ attribute.display_name }}</h2>
+
+        {{ counter.get_complete(attribute.name)|length}} / {{ counter.get_incomplete(attribute.name)|length }} Hacker Schoolers have {{ attribute.display_name }}
+
+        <a href="/update/{{ attribute.name }}">(push status update to Zulip)</a>
+        <ul>
+            {% for user in counter.get_complete(attribute.name) %}
+            <li>
+                {{ user }}
+                <a href="/uncheck/{{ attribute.name }}/{{ hash(user) }}">(uncheck)</a>
+            </li>
+            {% endfor %}
+        </ul>
+        have not {{ attribute.display_name }}
+        <ul>
+            {% for user in counter.get_incomplete(attribute.name) %}
+            <li>
+                {{ user }}
+                <a href="/check-off/{{ attribute.name }}/{{ hash(user) }}">(check)</a>
+            </li>
+            {% endfor %}
+        </ul>
+
+    {% endfor %}
+
+    <form name="input" action="/add" method="post">
+        Username: <input type="text" name="name">
+        <input type="submit" value="add user">
+    </form>
+
+</html>

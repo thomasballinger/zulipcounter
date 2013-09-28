@@ -42,7 +42,7 @@ class ZulipUsersCounter(object):
             with open(self.filename, 'w') as f:
                 json.dump(self.users, f)
         with open(self.filename, 'r') as f:
-            self.counted_users = set(json.load(f))
+            self.users = json.load(f)
 
     def add_attribute(self, attribute):
         self.attributes.append(attribute)
@@ -57,25 +57,63 @@ class ZulipUsersCounter(object):
         with self.users_lock:
             return self.users.keys()
 
-    def get_complete(self, att):
-        with self.users_lock:
-            return [user for user in self.users if self.users[user].get(att, False)]
+    @property
+    def all(self):
+        return self.user_names
 
-    def check_off(self, user, att):
-        assert att in self.att_names
+    def __getattr__(self, attr):
+        try:
+            if attr[:4].lower() == 'not_':
+                att, = [att for att in self.attributes if att.name.lower() == attr[4:].lower()]
+                return self.get_incomplete(att)
+            else:
+                att, = [att for att in self.attributes if att.name.lower() == attr.lower()]
+                return self.get_complete(att)
+        except ValueError:
+            raise AttributeError(repr(self)+' doesn\'t have attribute '+att)
+
+    def get_complete(self, att):
+        if not att in self.attributes:
+            att, = [a for a in self.attributes if a.name == att]
+        assert att in self.attributes
         with self.users_lock:
-            if not self.users[user][att]:
-                self.users[user][att] = True
-                msg = att.on_check_off(user, self.get_complete(att), self.users)
-                if msg:
+            return [user for user in self.users if self.users[user].get(att.name, False)]
+
+    def get_incomplete(self, att):
+        if not att in self.attributes:
+            att, = [a for a in self.attributes if a.name == att]
+        assert att in self.attributes
+        with self.users_lock:
+            return [user for user in self.users if not self.users[user].get(att.name, False)]
+
+    def check_off(self, username, att, run_callback=True):
+        if not att in self.attributes:
+            att, = [a for a in self.attributes if a.name == att]
+        assert att in self.attributes
+        with self.users_lock:
+            if not self.users[username].get(att.name, False):
+                self.users[username][att.name] = True
+                msg = att.on_checkoff(username, self.get_complete(att), self.users)
+                print 'got this message from', att, 'and user', username
+                if msg and run_callback:
                     BOT_CLIENT.send_message(msg)
                 with open(self.filename, 'w') as f:
                     json.dump(self.users, f)
 
+    def update(self, att):
+        if not att in self.attributes:
+            att, = [a for a in self.attributes if a.name == att]
+        assert att in self.attributes
+        msg = att.on_checkoff("someone", self.get_complete(att), self.users)
+        if msg:
+            BOT_CLIENT.send_message(msg)
+
     def uncheck(self, user, att):
-        assert att in self.att_names
+        if not att in self.attributes:
+            att, = [a for a in self.attributes if a.name == att]
+        assert att in self.attributes
         with self.users_lock:
-            self.users[user][att] = False
+            self.users[user][att.name] = False
             with open(self.filename, 'w') as f:
                 json.dump(self.users, f)
 
@@ -104,8 +142,10 @@ class ZulipUsersCounter(object):
             return False
 
     def callback(self, event):
+        print event
         with self.users_lock:
             user = self.get_user(event)
+            print 'got user:', user
             if user:
                 for att in self.attributes:
                     if att.message_filter(event):
@@ -119,9 +159,11 @@ class ZulipUsersCounter(object):
         t.daemon = True
         t.start()
 
-class HavePushedCommitsToZulip(Attribute):
+
+class HavePushedCommitToZulip(Attribute):
     def __init__(self):
         self.name = "commit"
+        self.display_name = "pushed a commit to Github after setting up a Zulip service hook on Github"
         def filterfunc(event):
             return event['type'] == 'message' and event['message']['type'] == 'stream' and event['message']['display_recipient'] == 'test-bot2' and 'pushed' in event['message']['content'] and 'to branch' in event['message']['content']
         self.message_filter = filterfunc
@@ -130,14 +172,15 @@ class HavePushedCommitsToZulip(Attribute):
                 "type": "stream",
                 "to": "test-bot2",
                 "subject": "Commit Participation Progress",
-                "content": "%d out of %d Hacker Schooler%s published pushing of commits on Zulip!" % (len(done), len(users), ' has' if len(self.counted_users) == 1 else 's have')
+                "content": "%d out of %d Hacker Schooler%s published pushing of commits on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
-        self.on_check_off = update_msg
+        self.on_checkoff = update_msg
         self.on_uncheck = None
 
-class HaveWrittenZulipMessage(Attribute):
+class HaveWrittenCodeInZulip(Attribute):
     def __init__(self):
-        self.name = 'zulip'
+        self.name = 'zulipcode'
+        self.display_name = 'written a Zulip message containing formatted code'
         def filterfunc(event):
             return event['type'] == 'message' and ('`' in event['message']['content'] or '~~~' in event['message']['content'] or '    ' in event['message']['content'])
         self.message_filter = filterfunc
@@ -146,13 +189,47 @@ class HaveWrittenZulipMessage(Attribute):
                 "type": "stream",
                 "to": "test-bot2",
                 "subject": "Zulip Participation Progress",
-                "content": "%d out of %d Hacker Schooler%s sent messages containing code on Zulip!" % (len(done), len(users), ' has' if len(self.counted_users) == 1 else 's have')
+                "content": "%d out of %d Hacker Schooler%s sent messages containing code on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
-        self.on_check_off = update_msg
+        self.on_checkoff = update_msg
+        self.on_uncheck = None
+
+class HaveWrittenZulipMessage(Attribute):
+    def __init__(self):
+        self.name = 'zulip'
+        self.display_name = 'written a Zulip message'
+        def filterfunc(event):
+            return event['type'] == 'message'
+        self.message_filter = filterfunc
+        def update_msg(username, done, users):
+            return {
+                "type": "stream",
+                "to": "test-bot2",
+                "subject": "Zulip Participation Progress",
+                "content": "%d out of %d Hacker Schooler%s sent messages on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
+            }
+        self.on_checkoff = update_msg
+        self.on_uncheck = None
+
+class HavePostedBroadcast(Attribute):
+    def __init__(self):
+        self.name = 'broadcast'
+        self.display_name = 'posted a broadcast from the Hacker School site'
+        def filterfunc(event):
+            return event['type'] == 'message' and event['message']['display_recipient'] == 'test-bot2'
+        self.message_filter = filterfunc
+        def update_msg(username, done, users):
+            return {
+                "type": "stream",
+                "to": "test-bot2",
+                "subject": "Broadcasts Participation Progress",
+                "content": "%d out of %d Hacker Schooler%s posted broadcasts!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
+            }
+        self.on_checkoff = update_msg
         self.on_uncheck = None
 
 if __name__ == '__main__':
     counter = ZulipUsersCounter(filename='data.json')
-    counter.add_attribute(HavePushedCommitsToZulip())
+    counter.add_attribute(HavePushedCommitToZulip())
     counter.add_attribute(HaveWrittenZulipMessage())
     counter.start()
