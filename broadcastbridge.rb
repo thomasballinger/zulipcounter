@@ -5,10 +5,10 @@ require 'uri'
 require 'nokogiri'
 require 'json'
 
-Zulip_bot_email = ENV['FACULTY_ZULIP_BOT_EMAIL']
-Zulip_bot_api_key = ENV['FACULTY_ZULIP_BOT_API_KEY']
+Zulip_bot_email = ENV['ZULIP_BROADCASTS_BOT_EMAIL']
+Zulip_bot_api_key = ENV['ZULIP_BROADCASTS_BOT_API_KEY']
 
-m = /http:\/\/([a-z0-9]+):([a-z0-9]+)@api.pusherapp.com\/apps\/([0-9]+)/.match ENV['TEST_PUSHER_URL']
+m = /http:\/\/([a-z0-9]+):([a-z0-9]+)@api.pusherapp.com\/apps\/([0-9]+)/.match ENV['PRODUCTION_PUSHER_URL']
 TestPusherUser = m[1]
 TestPusherSecret = m[2]
 
@@ -21,7 +21,7 @@ def send_zulip_msg(msg)
   req = Net::HTTP::Post.new(uri.path)
   req.basic_auth Zulip_bot_email, Zulip_bot_api_key
   req.set_form_data(type: 'stream',
-                    to: 'bot-test',
+                    to: 'broadcasts',
                     subject: 'broadcasts',
                     content: msg)
   res = https.request(req)

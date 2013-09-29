@@ -73,4 +73,4 @@ def update(att):
     return redirect('/')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=8222, host='0.0.0.0')
