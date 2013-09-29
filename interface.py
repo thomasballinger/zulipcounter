@@ -1,22 +1,21 @@
 import os
 from functools import wraps
 
-from flask import Flask, render_template, redirect, request
+from flask import Flask, render_template, redirect, request, Response
 app = Flask(__name__)
-app.debug = True
 
 from zulipcounter import ZulipUsersCounter, HaveWrittenZulipMessage, HavePushedCommitToZulip, HavePostedBroadcast
 
-users = ['Tom Ballinger',
-       "Jay Weisskopf (S'13)"]
+HS_EXTERNAL_IP = os.environ['HS_EXTERNAL_IP']
+NOT_VERY_SECRET_PASSWORD = os.environ['NOT_VERY_SECRET_PASSWORD']
+
+users = ['Tom Ballinger']
 
 counter = ZulipUsersCounter(filename='data.json', usernames=users)
 counter.add_attribute(HaveWrittenZulipMessage())
 counter.add_attribute(HavePushedCommitToZulip())
 counter.add_attribute(HavePostedBroadcast())
 counter.start_in_thread()
-
-HS_EXTERNAL_IP = os.environ['HS_EXTERNAL_IP']
 
 def require_HS_ip(func):
     @wraps(func)
@@ -27,7 +26,15 @@ def require_HS_ip(func):
             return func(*args, **kwargs)
         else:
             print request.remote_addr, '!=', HS_EXTERNAL_IP
-            return '<html>Sorry, this app just for people physically located at 455 Broadway.</html>'
+            auth = request.authorization
+            if auth and auth.password.replace(' ', '').lower() == NOT_VERY_SECRET_PASSWORD.lower():
+                return func(*args, **kwargs)
+            else:
+                if auth:
+                    print 'bad auth:', auth.username, auth.password
+                return Response(
+                'Sorry, this app just for people physically located at 455 Broadway.', 401,
+                {'WWW-Authenticate': 'Basic realm="Login Required"'})
     return newfunc
 
 def get_username_by_hash(num):
