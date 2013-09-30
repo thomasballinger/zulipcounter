@@ -139,6 +139,16 @@ class ZulipUsersCounter(object):
         with self.users_lock:
             if event['type'] == 'message':
                 user = event['message']['sender_full_name']
+                if user == 'Broadcasts':
+                    text = event['message']['content']
+                    try:
+                        i = text.rindex('-')
+                        name = text[i+2:]+" (F'13)"
+                        print 'broadcasts: trying', name
+                        user = name
+                    except ValueError:
+                        print 'user %s not found in users list' % user
+                        return False
                 if user in self.users:
                     return user
                 else:
@@ -146,14 +156,16 @@ class ZulipUsersCounter(object):
             return False
 
     def callback(self, event):
-        print event
         with self.users_lock:
             user = self.get_user(event)
-            print 'got user:', user
             if user:
+                print 'got user:', user, 'from event', event
                 for att in self.attributes:
                     if att.message_filter(event):
+                        print 'message filter for', att, 'succeeded'
                         self.check_off(user, att)
+                    else:
+                        print 'did not pass for', att
 
     def start(self):
         CLIENT.call_on_each_event(self.callback)
@@ -174,7 +186,7 @@ class HavePushedCommitToZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "commits",
+                "to": "announce",
                 "subject": "Commit Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s published pushing of commits on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -191,7 +203,7 @@ class HaveWrittenCodeInZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "",
+                "to": "announce",
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages containing code on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -208,7 +220,7 @@ class HaveWrittenZulipMessage(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "participation",
+                "to": "announce",
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -220,13 +232,13 @@ class HavePostedBroadcast(Attribute):
         self.name = 'broadcast'
         self.display_name = 'posted a broadcast from the Hacker School site'
         def filterfunc(event):
-            return event['type'] == 'message' and event['message']['display_recipient'] == 'test-bot2'
+            return event['type'] == 'message' and event['message']['display_recipient'] == 'Broadcasts'
         self.message_filter = filterfunc
         def update_msg(username, done, users):
             return {
                 "type": "stream",
                 "to": "participation",
-                "subject": "Broadcasts Participation Progress",
+                "subject": "announce",
                 "content": "%d out of %d Hacker Schooler%s posted broadcasts!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
         self.on_checkoff = update_msg
