@@ -79,5 +79,11 @@ def update(att):
     counter.update(att)
     return redirect('/')
 
+@app.route('/update/<att>')
+@require_HS_ip
+def update(att):
+    counter.update(att)
+    return redirect('/')
+
 if __name__ == '__main__':
     app.run(port=8222, host='0.0.0.0')
