@@ -1,4 +1,27 @@
 <html>
+    <h2>Quick Change Table</h2>
+    <table border="1">
+	    <tr>
+		<th>Name</th>
+        {% for att in counter.attributes %}
+		    <th>{{ att.display_name }} </th>
+		{% endfor %}
+	    </tr>
+        {% for user in counter.all %}
+		<tr>
+            <td>{{ user }}</td>
+            {% for att in counter.attributes %}
+                <td>
+                    {% if counter.has_done(user, att) %}
+                        DONE!
+                    {% else %}
+                        <a href="/check-off/{{ att.name }}/{{ hash(user) }}">(check)</a>
+                    {% endif %}
+                </td>
+            {% endfor %}
+		</tr>
+        {% endfor %}
+	</table>
 
     <h2>All Users</h2>
     <ul>

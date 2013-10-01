@@ -61,6 +61,9 @@ class ZulipUsersCounter(object):
     def all(self):
         return self.user_names
 
+    def has_done(self, user, att):
+        return self.users[user].get(att.name, False)
+
     def __getattr__(self, attr):
         try:
             if attr[:4].lower() == 'not_':
