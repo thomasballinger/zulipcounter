@@ -4,7 +4,7 @@ from functools import wraps
 from flask import Flask, render_template, redirect, request, Response
 app = Flask(__name__)
 
-from zulipcounter import ZulipUsersCounter, HaveWrittenZulipMessage, HavePushedCommitToZulip, HavePostedBroadcast
+from zulipcounter import ZulipUsersCounter, HaveWrittenZulipMessage, HavePushedCommitToZulip, HavePostedBroadcast, BOT_CLIENT
 
 HS_EXTERNAL_IP = os.environ['HS_EXTERNAL_IP']
 NOT_VERY_SECRET_PASSWORD = os.environ['NOT_VERY_SECRET_PASSWORD']
@@ -73,10 +73,17 @@ def add():
     counter.add(request.form['name'])
     return redirect('/')
 
-@app.route('/update/<att>')
+@app.route('/announce')
 @require_HS_ip
 def update(att):
-    counter.update(att)
+    msg = {
+            "type": "stream",
+            "to": 'test-bot2',
+            "subject": "Zulip Participation Progress",
+            "content": "\n".join(att.on_checkoff("someone", att.get_complete(att), att.users)['content']
+                                 for att in counter.attributes)
+            }
+    BOT_CLIENT.send_message(msg)
     return redirect('/')
 
 @app.route('/update/<att>')

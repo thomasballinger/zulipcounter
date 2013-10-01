@@ -7,10 +7,15 @@ import threading
 
 #TODO use a database instead
 
+
+
 CLIENT = zulip.Client(email=os.environ['ZULIP_EMAIL'],
                       api_key=os.environ['ZULIP_API_KEY'])
 BOT_CLIENT = zulip.Client(email=os.environ['ZULIP_COMMIT_BOT_EMAIL'],
                          api_key=os.environ['ZULIP_COMMIT_BOT_API_KEY'])
+
+
+
 
 class Attribute(object):
     def __init__(self, name, message_filter=lambda *args:False, on_checkoff=lambda *args:None, on_uncheck=lambda *args:None):
@@ -31,9 +36,9 @@ class ZulipUsersCounter(object):
 
     For each attribute added allows filters and messages to be send on Zulip event
     """
-
-    def __init__(self, filename, usernames=None):
+    def __init__(self, filename, usernames=None, debug=False):
         """msg_new_user is sent when a unique user from the users list passes the filterfunc"""
+        self.debug = debug
         self.filename = filename
         self.users = dict([(user,{}) for user in usernames]) if usernames else {}
         self.users_lock = threading.RLock()
@@ -43,6 +48,9 @@ class ZulipUsersCounter(object):
                 json.dump(self.users, f)
         with open(self.filename, 'r') as f:
             self.users = json.load(f)
+
+    def get_output_stream(self):
+        return 'participation' if not self.debug else 'test-bot2'
 
     def add_attribute(self, attribute):
         self.attributes.append(attribute)
@@ -189,7 +197,7 @@ class HavePushedCommitToZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "participation",
+                "to": self.get_output_stream(),
                 "subject": "Commit Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s published pushing of commits on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -206,7 +214,7 @@ class HaveWrittenCodeInZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "participation",
+                "to": self.get_output_stream(),
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages containing code on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -223,7 +231,7 @@ class HaveWrittenZulipMessage(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "participation",
+                "to": self.get_output_stream(),
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -240,7 +248,7 @@ class HavePostedBroadcast(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": "participation",
+                "to": self.get_output_stream(),
                 "subject": "participation",
                 "content": "%d out of %d Hacker Schooler%s posted broadcasts!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
