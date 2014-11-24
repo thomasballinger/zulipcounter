@@ -75,12 +75,12 @@ def add():
 
 @app.route('/announce')
 @require_HS_ip
-def update(att):
+def announce():
     msg = {
             "type": "stream",
-            "to": 'test-bot2',
+            "to": 'announce',
             "subject": "Zulip Participation Progress",
-            "content": "\n".join(att.on_checkoff("someone", att.get_complete(att), att.users)['content']
+            "content": "\n".join(att.on_checkoff("someone", counter.get_complete(att), counter.users)['content']
                                  for att in counter.attributes)
             }
     BOT_CLIENT.send_message(msg)

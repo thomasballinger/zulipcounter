@@ -49,9 +49,6 @@ class ZulipUsersCounter(object):
         with open(self.filename, 'r') as f:
             self.users = json.load(f)
 
-    def get_output_stream(self):
-        return 'participation' if not self.debug else 'test-bot2'
-
     def add_attribute(self, attribute):
         self.attributes.append(attribute)
 
@@ -197,7 +194,7 @@ class HavePushedCommitToZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": self.get_output_stream(),
+                "to": 'participation',
                 "subject": "Commit Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s published pushing of commits on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -214,7 +211,7 @@ class HaveWrittenCodeInZulip(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": self.get_output_stream(),
+                "to": 'participation',
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages containing code on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -231,7 +228,7 @@ class HaveWrittenZulipMessage(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": self.get_output_stream(),
+                "to": 'participation',
                 "subject": "Zulip Participation Progress",
                 "content": "%d out of %d Hacker Schooler%s sent messages on Zulip!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
@@ -248,7 +245,7 @@ class HavePostedBroadcast(Attribute):
         def update_msg(username, done, users):
             return {
                 "type": "stream",
-                "to": self.get_output_stream(),
+                "to": 'participation',
                 "subject": "participation",
                 "content": "%d out of %d Hacker Schooler%s posted broadcasts!" % (len(done), len(users), ' has' if len(done) == 1 else 's have')
             }
